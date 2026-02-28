@@ -1,18 +1,32 @@
 import streamlit as st
 from openai import OpenAI
 import os
-from dotenv import load_dotenv
 import pandas as pd
 import re
+from dotenv import load_dotenv
 
-# Load .env file
+# Load .env for local development
 load_dotenv()
 
-# Works both locally and on Streamlit Cloud
-try:
-    env_api_key = st.secrets["OPENROUTER_API_KEY"]
-except:
-    env_api_key = os.getenv("OPENROUTER_API_KEY", "")
+# ── SECURE API KEY HANDLER ────────────────────────────────
+def get_api_key():
+    # First try Streamlit Secrets (for cloud)
+    try:
+        key = st.secrets["OPENROUTER_API_KEY"]
+        if key:
+            return key
+    except:
+        pass
+    # Then try .env file (for local)
+    try:
+        key = os.getenv("OPENROUTER_API_KEY", "")
+        if key:
+            return key
+    except:
+        pass
+    return None
+
+api_key = get_api_key()
 
 # ── Page Config ───────────────────────────────────────────
 st.set_page_config(
@@ -21,7 +35,17 @@ st.set_page_config(
     layout="wide"
 )
 
-# ── Custom CSS for Professional Look ─────────────────────
+# ── Block app if key not found ────────────────────────────
+if not api_key:
+    st.markdown("""
+    <div style="background:#1e2130; padding:40px; border-radius:15px; text-align:center;">
+        <h2 style="color:#ff4444;">⚠️ Configuration Required</h2>
+        <p style="color:#aaa;">Please contact the app administrator.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    st.stop()
+
+# ── Custom CSS ────────────────────────────────────────────
 st.markdown("""
 <style>
     .main { background-color: #0f1117; }
@@ -43,21 +67,6 @@ st.markdown("""
         margin: 8px 0 0 0;
         font-size: 1rem;
     }
-    .section-card {
-        background: #1e2130;
-        border: 1px solid #2d3561;
-        border-radius: 10px;
-        padding: 20px;
-        margin: 15px 0;
-    }
-    .section-title {
-        color: #90caf9;
-        font-size: 1.1rem;
-        font-weight: 600;
-        border-bottom: 2px solid #2d3561;
-        padding-bottom: 10px;
-        margin-bottom: 15px;
-    }
     div[data-testid="metric-container"] {
         background: #1e2130;
         border: 1px solid #2d3561;
@@ -72,33 +81,27 @@ st.markdown("""
 <div class="executive-header">
     <h1>🎯 Executive Meeting Intelligence</h1>
     <p>Transform meeting transcripts into high-signal executive insights</p>
+    <p style="color:#64b5f6; font-size:0.85rem; margin-top:8px;">
+        Built by Marisha Dwivedi | AI Engineer Portfolio
+    </p>
 </div>
 """, unsafe_allow_html=True)
 
-# ── Sidebar ───────────────────────────────────────────────
+# ── Sidebar - NO API KEY SHOWN ANYWHERE ──────────────────
 with st.sidebar:
-    st.header("⚙️ Configuration")
-
-    api_key = st.text_input(
-        "OpenRouter API Key",
-        value=env_api_key,
-        type="password",
-        placeholder="sk-or-v1-..."
-    )
-    st.markdown("Get free key at [openrouter.ai](https://openrouter.ai)")
-
-    st.markdown("---")
+    st.markdown("## ⚙️ Settings")
 
     model_choice = st.selectbox(
-        "AI Model (All Free ✅)",
-        [
-            "openrouter/auto",
-            "deepseek/deepseek-r1:free",
-            "deepseek/deepseek-chat-v3-0324:free",
-            "google/gemini-2.0-flash-exp:free",
-            "meta-llama/llama-3.3-70b-instruct:free",
-        ]
-    )
+    "AI Model (All Free ✅)",
+    [
+        "z-ai/glm-4.5-air:free",
+        "openrouter/auto",
+        "deepseek/deepseek-r1:free",
+        "deepseek/deepseek-chat-v3-0324:free",
+        "google/gemini-2.0-flash-exp:free",
+        "meta-llama/llama-3.3-70b-instruct:free",
+    ]
+)
     st.info("💡 Switch model if you get a 429 error!")
 
     st.markdown("---")
@@ -110,7 +113,17 @@ with st.sidebar:
     - 🎯 Key Decisions Made
     - ⏱️ Strategic Next Steps
     - ⚠️ Risks & Blockers
-    - 📥 Download Full Report
+    - 📥 Download Report
+    """)
+
+    st.markdown("---")
+    st.markdown("### 👩‍💻 About")
+    st.markdown("""
+    Built by **Marisha Dwivedi**
+    
+    AI Engineer | Prompt Engineering
+    
+    🔗 [GitHub](https://github.com/marisha119-AI)
     """)
 
 # ── Sample Transcript ─────────────────────────────────────
@@ -120,31 +133,19 @@ Date: Monday 10 AM
 Attendees: Sarah (PM), John (Dev Lead), Lisa (Designer), Mike (Marketing)
 
 Sarah: Okay let's get started. We need to finalize the Q3 roadmap today.
-
-John: The backend for the new dashboard is 80% done. We should be ready to test by next Friday.
-
-Lisa: I finished the mockups for the mobile app. I'll send them to John by tomorrow for review.
-
+John: The backend for the new dashboard is 80% done. Ready to test by next Friday.
+Lisa: I finished the mockups for the mobile app. I'll send them to John by tomorrow.
 Sarah: Great. Mike, what's the status on the marketing campaign?
-
-Mike: We're behind schedule. The campaign was supposed to launch this week but we need the final product screenshots first. Can Lisa send those by Wednesday?
-
+Mike: We're behind schedule. Need the final product screenshots first. Can Lisa send those by Wednesday?
 Lisa: Yes I can do Wednesday for the screenshots.
-
-Sarah: Good. John, can you make sure the demo environment is ready by Thursday so Mike can record the promo video?
-
-John: Thursday works for me. I'll also need someone to review the API documentation. Can Sarah do that by end of this week?
-
-Sarah: I'll review the API docs by Friday. Also, we've decided to push the mobile app launch to August 15th instead of August 1st to give us more testing time.
-
-Mike: That works for marketing. Gives us more time to prepare the campaign.
-
-Sarah: Perfect. Let's meet again next Monday at 10 AM to check progress. Any blockers?
-
+Sarah: John, can you make sure the demo environment is ready by Thursday?
+John: Thursday works. I'll also need someone to review the API documentation. Can Sarah do that by Friday?
+Sarah: I'll review the API docs by Friday. We've decided to push the mobile app launch to August 15th.
+Mike: That works for marketing.
+Sarah: Let's meet again next Monday at 10 AM. Any blockers?
 John: No blockers from dev side.
 Lisa: No blockers.
 Mike: Just need those screenshots by Wednesday.
-
 Sarah: Alright, we're done. Thanks everyone.
 """
 
@@ -163,14 +164,13 @@ with col_input1:
 with col_input2:
     st.subheader("⚙️ Meeting Details")
     meeting_name = st.text_input("Meeting Name", value="Q3 Product Planning")
-    your_name    = st.text_input("Your Name (highlights your tasks)", value="Sarah")
+    your_name    = st.text_input("Your Name", value="Sarah")
     meeting_date = st.text_input("Meeting Date", value="Monday 10 AM")
-
     st.markdown("---")
-    st.markdown("**Quick Tips:**")
+    st.markdown("**💡 Tips:**")
     st.markdown("• Paste any meeting transcript")
     st.markdown("• Your tasks will be highlighted")
-    st.markdown("• Download full report after analysis")
+    st.markdown("• Download full report after")
 
 # ── Analyze Button ────────────────────────────────────────
 st.markdown("")
@@ -182,61 +182,53 @@ analyze_btn = st.button(
 
 if analyze_btn:
 
-    if not api_key:
-        st.error("⚠️ Please enter your OpenRouter API key in the sidebar!")
-        st.stop()
-
     if not transcript_input.strip():
-        st.warning("⚠️ Please paste a meeting transcript first!")
+        st.warning("⚠️ Please paste a meeting transcript!")
         st.stop()
 
+    # API key is hidden - comes from secrets or .env only!
     client = OpenAI(
         api_key=api_key,
         base_url="https://openrouter.ai/api/v1"
     )
 
-    # ── EXECUTIVE SUITE SYSTEM PROMPT ────────────────────
     system_prompt = """
 # ROLE
-You are the "Principal Strategy Analyst." Your purpose is to transform messy, 
-conversational meeting transcripts into high-signal executive intelligence.
+You are the Principal Strategy Analyst. Transform meeting transcripts
+into high-signal executive intelligence.
 
-# OUTPUT STRUCTURE (MANDATORY)
-You must format every response using the following sections EXACTLY:
+# OUTPUT FORMAT (MANDATORY - follow exactly)
+MEETING_OBJECTIVE: (One sentence summary)
+SENTIMENT: (Productive / Neutral / Tense / Unresolved)
+CONFIDENCE: (0-100)
 
-MEETING_OBJECTIVE: (One sentence summary of the meeting goal)
-SENTIMENT: (Choose exactly one: Productive / Neutral / Tense / Unresolved)
-CONFIDENCE: (A number 0-100 based on transcript clarity)
-
-TLDR_1: (First bullet point - most important insight)
-TLDR_2: (Second bullet point)
-TLDR_3: (Third bullet point)
+TLDR_1: (Key insight 1)
+TLDR_2: (Key insight 2)
+TLDR_3: (Key insight 3)
 
 ACTION_ITEM_START
-Task: (task description) | Owner: (person name) | Deadline: (date or TBD) | Priority: (High/Medium/Low)
-Task: (task description) | Owner: (person name) | Deadline: (date or TBD) | Priority: (High/Medium/Low)
+Task: (description) | Owner: (name) | Deadline: (date or TBD) | Priority: (High/Medium/Low)
+Task: (description) | Owner: (name) | Deadline: (date or TBD) | Priority: (High/Medium/Low)
 ACTION_ITEM_END
 
-DECISION_1: (Decision name): (Brief explanation of what was finalized)
-DECISION_2: (Decision name): (Brief explanation)
-DECISION_3: (Decision name): (Brief explanation if exists)
+DECISION_1: (Decision name): (Explanation)
+DECISION_2: (Decision name): (Explanation)
+DECISION_3: (Decision name): (Explanation)
 
-NEXT_MEETING: (Proposed date/time and agenda)
+NEXT_MEETING: (Proposed date and agenda)
+RISKS: (Risks or blockers. If none write: No blockers identified)
 
-RISKS: (Any risks or blockers in 1-2 sentences. If none write: No blockers identified.)
-
-# CONSTRAINTS
-- NO conversational filler like "Here is your summary"
-- If deadline or owner not mentioned, write TBD
-- Use Professional Corporate English only
-- Active verbs only (Complete, Review, Send, Build)
+# RULES
+- NO conversational filler
+- TBD if deadline unknown
+- Professional corporate English
+- Active verbs only
 """
 
     user_prompt = f"""
-Analyze this meeting transcript and produce the Executive Intelligence Report.
 Meeting Name: {meeting_name}
 Meeting Date: {meeting_date}
-Focus person (highlight their tasks): {your_name}
+Highlight tasks for: {your_name}
 
 Transcript:
 ---
@@ -259,29 +251,26 @@ Transcript:
 
             result = response.choices[0].message.content.strip()
 
-            # ── Parse All Sections ────────────────────────
+            # ── Parse Results ──────────────────────────────
             def extract(label, text):
-                pattern = rf"{label}:\s*(.+)"
-                match = re.search(pattern, text)
+                match = re.search(rf"{label}:\s*(.+)", text)
                 return match.group(1).strip() if match else "TBD"
 
-            meeting_obj = extract("MEETING_OBJECTIVE", result)
-            sentiment   = extract("SENTIMENT", result)
-            confidence  = extract("CONFIDENCE", result)
-            tldr1       = extract("TLDR_1", result)
-            tldr2       = extract("TLDR_2", result)
-            tldr3       = extract("TLDR_3", result)
+            meeting_obj  = extract("MEETING_OBJECTIVE", result)
+            sentiment    = extract("SENTIMENT", result)
+            confidence   = extract("CONFIDENCE", result)
+            tldr1        = extract("TLDR_1", result)
+            tldr2        = extract("TLDR_2", result)
+            tldr3        = extract("TLDR_3", result)
             next_meeting = extract("NEXT_MEETING", result)
             risks        = extract("RISKS", result)
 
-            # Parse decisions
             decisions = []
             for i in range(1, 6):
                 d = extract(f"DECISION_{i}", result)
                 if d != "TBD":
                     decisions.append(d)
 
-            # Parse action items table
             action_items = []
             in_actions = False
             for line in result.split('\n'):
@@ -294,191 +283,151 @@ Transcript:
                 if in_actions and "Task:" in line:
                     parts = line.split('|')
                     if len(parts) >= 4:
-                        task     = parts[0].replace("Task:", "").strip()
-                        owner    = parts[1].replace("Owner:", "").strip()
-                        deadline = parts[2].replace("Deadline:", "").strip()
-                        priority = parts[3].replace("Priority:", "").strip()
                         action_items.append({
-                            "Task": task,
-                            "Owner": owner,
-                            "Deadline": deadline,
-                            "Priority": priority
+                            "Task":     parts[0].replace("Task:", "").strip(),
+                            "Owner":    parts[1].replace("Owner:", "").strip(),
+                            "Deadline": parts[2].replace("Deadline:", "").strip(),
+                            "Priority": parts[3].replace("Priority:", "").strip()
                         })
 
-            # ── DISPLAY RESULTS ───────────────────────────
+            # ── Display Results ────────────────────────────
             st.markdown("---")
-            st.markdown(f"## 📊 Executive Intelligence Report — {meeting_name}")
-
-            # ── Section 1: Executive Overview ─────────────
-            st.markdown("### 📊 Executive Overview")
+            st.markdown(f"## 📊 Executive Report — {meeting_name}")
 
             sentiment_map = {
-                "Productive": ("🟢", "normal"),
-                "Neutral":    ("🟡", "normal"),
-                "Tense":      ("🔴", "inverse"),
-                "Unresolved": ("🟠", "off")
+                "Productive": "🟢",
+                "Neutral":    "🟡",
+                "Tense":      "🔴",
+                "Unresolved": "🟠"
             }
-            s_icon, s_delta = sentiment_map.get(sentiment, ("⚪", "normal"))
+            s_icon = sentiment_map.get(sentiment, "⚪")
 
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric(
-                    "Meeting Sentiment",
-                    f"{s_icon} {sentiment}"
-                )
+                st.metric("Meeting Sentiment", f"{s_icon} {sentiment}")
             with col2:
-                st.metric(
-                    "Confidence Score",
-                    f"{confidence}%",
-                    help="Based on transcript clarity and completeness"
-                )
+                st.metric("Confidence Score",  f"{confidence}%")
             with col3:
-                st.metric(
-                    "Action Items Found",
-                    f"📋 {len(action_items)}"
-                )
+                st.metric("Action Items Found", f"📋 {len(action_items)}")
 
-            st.info(f"**🎯 Meeting Objective:** {meeting_obj}")
+            st.info(f"**🎯 Objective:** {meeting_obj}")
 
-            # ── Section 2: TL;DR Summary ──────────────────
-            st.markdown("### 📝 30-Second TL;DR Summary")
-            st.markdown(f"""
-<div class="section-card">
-    <ul style="color: #e0e0e0; line-height: 2;">
-        <li>{tldr1}</li>
-        <li>{tldr2}</li>
-        <li>{tldr3}</li>
-    </ul>
-</div>
-""", unsafe_allow_html=True)
-
-            # ── Section 3: Action Items Table ─────────────
-            st.markdown("### ✅ Action Item Tracker")
+            st.markdown("### 📝 30-Second TL;DR")
+            st.markdown(f"• {tldr1}")
+            st.markdown(f"• {tldr2}")
+            st.markdown(f"• {tldr3}")
 
             if action_items:
+                st.markdown("### ✅ Action Item Tracker")
                 df = pd.DataFrame(action_items)
 
-                # Color priority column
                 def highlight_priority(val):
                     colors = {
-                        "High":   "background-color: #7f1d1d; color: #fca5a5;",
-                        "Medium": "background-color: #78350f; color: #fcd34d;",
-                        "Low":    "background-color: #14532d; color: #86efac;"
+                        "High":   "background-color:#7f1d1d; color:#fca5a5;",
+                        "Medium": "background-color:#78350f; color:#fcd34d;",
+                        "Low":    "background-color:#14532d; color:#86efac;"
                     }
                     return colors.get(val, "")
 
-                # Highlight your tasks
                 def highlight_owner(val):
                     if your_name.lower() in val.lower():
-                        return "background-color: #1e3a5f; color: #90caf9; font-weight: bold;"
+                        return "background-color:#1e3a5f; color:#90caf9; font-weight:bold;"
                     return ""
 
-                styled_df = df.style.applymap(
-                    highlight_priority, subset=["Priority"]
-                ).applymap(
-                    highlight_owner, subset=["Owner"]
-                )
+                styled_df = df.style\
+                    .applymap(highlight_priority, subset=["Priority"])\
+                    .applymap(highlight_owner,    subset=["Owner"])
 
                 st.dataframe(
                     styled_df,
                     use_container_width=True,
-                    hide_index=True,
-                    height=min(400, (len(action_items) + 1) * 55)
+                    hide_index=True
                 )
-                st.caption(f"💡 Tasks highlighted in blue are assigned to **{your_name}**")
-            else:
-                st.warning("No structured action items found. Try a different model.")
+                st.caption(f"💡 Blue highlighted rows = {your_name}'s tasks")
 
-            # ── Section 4: Key Decisions ──────────────────
             if decisions:
                 st.markdown("### 🎯 Key Decisions Made")
-                for decision in decisions:
-                    if decision and decision != "TBD":
-                        st.success(f"✅ {decision}")
+                for d in decisions:
+                    if d and d != "TBD":
+                        st.success(f"✅ {d}")
 
-            # ── Section 5: Next Steps & Risks ─────────────
-            col_next, col_risk = st.columns(2)
-
-            with col_next:
-                st.markdown("### ⏱️ Strategic Next Steps")
+            col_n, col_r = st.columns(2)
+            with col_n:
+                st.markdown("### ⏱️ Next Meeting")
                 st.info(f"📅 {next_meeting}")
-
-            with col_risk:
+            with col_r:
                 st.markdown("### ⚠️ Risks & Blockers")
-                if "no blockers" in risks.lower() or "none" in risks.lower():
+                if "no blockers" in risks.lower():
                     st.success(f"✅ {risks}")
                 else:
                     st.error(f"🚨 {risks}")
 
-            # ── Download Full Report ──────────────────────
+            # ── Download Buttons ───────────────────────────
             st.markdown("---")
-            st.markdown("### 📥 Download Report")
-
-            action_table = "\n".join([
-                f"• {item['Task']} | {item['Owner']} | {item['Deadline']} | {item['Priority']}"
-                for item in action_items
+            action_text    = "\n".join([
+                f"• {i['Task']} | {i['Owner']} | {i['Deadline']} | {i['Priority']}"
+                for i in action_items
             ]) if action_items else "No action items found"
-
             decisions_text = "\n".join([
                 f"• {d}" for d in decisions
             ]) if decisions else "No decisions recorded"
 
             full_report = f"""
 EXECUTIVE MEETING INTELLIGENCE REPORT
-=======================================
-Meeting: {meeting_name}
-Date: {meeting_date}
-Generated by: AI Meeting Intelligence Agent
+======================================
+Meeting   : {meeting_name}
+Date      : {meeting_date}
+Sentiment : {sentiment}
+Confidence: {confidence}%
 
-EXECUTIVE OVERVIEW
-------------------
-Objective   : {meeting_obj}
-Sentiment   : {sentiment}
-Confidence  : {confidence}%
+OBJECTIVE
+---------
+{meeting_obj}
 
-30-SECOND TL;DR
----------------
+TL;DR SUMMARY
+-------------
 - {tldr1}
 - {tldr2}
 - {tldr3}
 
-ACTION ITEM TRACKER
--------------------
-{action_table}
+ACTION ITEMS
+------------
+{action_text}
 
-KEY DECISIONS MADE
-------------------
+KEY DECISIONS
+-------------
 {decisions_text}
 
-STRATEGIC NEXT STEPS
---------------------
+NEXT MEETING
+------------
 {next_meeting}
 
 RISKS & BLOCKERS
 ----------------
 {risks}
 
-=======================================
-Generated by Executive Meeting Intelligence Agent
-Built with Streamlit + OpenRouter | Prompt Engineering Project #2
+======================================
+Generated by Executive Meeting Intelligence
+Built by Marisha Dwivedi | AI Engineer
+GitHub: https://github.com/marisha119-AI
 """
 
-            col_dl1, col_dl2 = st.columns(2)
-            with col_dl1:
+            col_d1, col_d2 = st.columns(2)
+            with col_d1:
                 st.download_button(
-                    label="📥 Download as .txt",
+                    "📥 Download Report (.txt)",
                     data=full_report,
-                    file_name=f"{meeting_name}_executive_report.txt",
+                    file_name=f"{meeting_name}_report.txt",
                     mime="text/plain",
                     use_container_width=True
                 )
-            with col_dl2:
+            with col_d2:
                 if action_items:
                     csv = pd.DataFrame(action_items).to_csv(index=False)
                     st.download_button(
-                        label="📊 Download Action Items as .csv",
+                        "📊 Download Actions (.csv)",
                         data=csv,
-                        file_name=f"{meeting_name}_action_items.csv",
+                        file_name=f"{meeting_name}_actions.csv",
                         mime="text/csv",
                         use_container_width=True
                     )
@@ -488,13 +437,12 @@ Built with Streamlit + OpenRouter | Prompt Engineering Project #2
         except Exception as e:
             error_msg = str(e)
             if "429" in error_msg:
-                st.error("❌ Model is busy (Rate Limited)")
-                st.warning("👉 Switch to a different model in the sidebar!")
+                st.error("❌ Model busy!")
+                st.warning("👉 Switch model in sidebar!")
             elif "401" in error_msg:
-                st.error("❌ Invalid API Key")
-                st.warning("👉 Check your key at openrouter.ai")
+                st.error("❌ API Key error - contact admin!")
             elif "404" in error_msg:
-                st.error("❌ Model not found")
+                st.error("❌ Model not found!")
                 st.warning("👉 Switch to openrouter/auto!")
             else:
                 st.error(f"❌ Error: {error_msg}")
@@ -502,6 +450,6 @@ Built with Streamlit + OpenRouter | Prompt Engineering Project #2
 # ── Footer ─────────────────────────────────────────────────
 st.markdown("---")
 st.markdown(
-    "<center style='color: #666;'>Built with ❤️ using Streamlit + OpenRouter | Executive Meeting Intelligence | Prompt Engineering Project #2</center>",
+    "<center style='color:#666;'>Built by Marisha Dwivedi | AI Engineer Portfolio | Streamlit + OpenRouter</center>",
     unsafe_allow_html=True
 )
